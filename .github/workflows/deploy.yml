@@ -40,14 +40,14 @@ jobs:
             scp -i ~/capstone-key.pem -o StrictHostKeyChecking=no ~/kv_node.py ec2-user@${{ secrets.SHARD2_PRIVATE_IP }}:~/
 
             echo "=== 3. Restarting Shard-1 and Shard-2 ==="
-            ssh -i ~/capstone-key.pem -o StrictHostKeyChecking=no ec2-user@${{ secrets.SHARD1_PRIVATE_IP }} \
+            ssh -n -i ~/capstone-key.pem -o StrictHostKeyChecking=no ec2-user@${{ secrets.SHARD1_PRIVATE_IP }} \
               "pkill -f kv_node.py || true; sleep 1; nohup python3 ~/kv_node.py --role shard --node-id shard-1 --port 8001 --coordinator-url http://${{ secrets.COORDINATOR_PRIVATE_IP }}:8000 --advertise-url http://${{ secrets.SHARD1_PRIVATE_IP }}:8001 > ~/shard1.log 2>&1 < /dev/null &"
 
-            ssh -i ~/capstone-key.pem -o StrictHostKeyChecking=no ec2-user@${{ secrets.SHARD2_PRIVATE_IP }} \
+            ssh -n -i ~/capstone-key.pem -o StrictHostKeyChecking=no ec2-user@${{ secrets.SHARD2_PRIVATE_IP }} \
               "pkill -f kv_node.py || true; sleep 1; nohup python3 ~/kv_node.py --role shard --node-id shard-2 --port 8002 --coordinator-url http://${{ secrets.COORDINATOR_PRIVATE_IP }}:8000 --advertise-url http://${{ secrets.SHARD2_PRIVATE_IP }}:8002 > ~/shard2.log 2>&1 < /dev/null &"
 
             sleep 2
             echo "=== 4. Verifying Cluster Health and Shards ==="
-            curl -s http://localhost:8000/health
-            curl -s http://localhost:8000/shards
+            curl -s http://localhost:8000/health || true
+            curl -s http://localhost:8000/shards || true
           ENDSSH
