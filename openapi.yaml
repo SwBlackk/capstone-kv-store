@@ -1,0 +1,189 @@
+openapi: 3.0.3
+info:
+  title: Distributed Key-Value Store API
+  description: >-
+    Специфікація REST API для розподіленого key-value сховища з підтримкою
+    реєстрації таблиць, складеного первинного ключа (Partition Key + Sort Key)
+    та шардингу на основі Consistent Hashing.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Вузол-координатор (Coordinator Node)
+
+paths:
+  /health:
+    get:
+      summary: Перевірка стану вузла та режиму роботи кластера
+      responses:
+        '200':
+          description: Поточний статус вузла (single-node або sharded)
+
+  /tables:
+    post:
+      summary: Реєстрація визначення нової таблиці
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - table_name
+                - partition_key
+              properties:
+                table_name:
+                  type: string
+                  example: orders
+                partition_key:
+                  type: string
+                  example: customer_id
+                sort_key:
+                  type: string
+                  nullable: true
+                  example: order_id
+      responses:
+        '201':
+          description: Таблицю успішно зареєстровано
+    get:
+      summary: Отримання списку зареєстрованих таблиць та їхніх схем
+      responses:
+        '200':
+          description: Перелік таблиць
+
+  /shards/register:
+    post:
+      summary: Автоматична реєстрація вузла-шарда у координаторі при старті
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - node_id
+                - url
+              properties:
+                node_id:
+                  type: string
+                  example: shard-1
+                url:
+                  type: string
+                  example: http://10.0.11.15:8001
+      responses:
+        '200':
+          description: Шард успішно додано до кільця Consistent Hashing
+
+  /shards:
+    get:
+      summary: Стан зареєстрованих шардів та кільця Consistent Hashing
+      responses:
+        '200':
+          description: Список активних шардів і кількість віртуальних вузлів
+
+  /tables/{table_name}/items:
+    post:
+      summary: CREATE — Збереження пари ключ-значення
+      parameters:
+        - name: table_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pk
+                - value
+              properties:
+                pk:
+                  type: string
+                  description: Partition Key
+                  example: client_alpha
+                sk:
+                  type: string
+                  nullable: true
+                  description: Sort Key (опціонально, якщо визначено у схемі таблиці)
+                  example: 2026-11-01#001
+                value:
+                  type: object
+                  example:
+                    item: Monitor
+                    amount: 350
+      responses:
+        '200':
+          description: Запис успішно збережено на відповідному шарді
+
+  /tables/{table_name}/items/{pk}:
+    get:
+      summary: READ — Читання значення за ключем або вибірка відсортованої партиції
+      parameters:
+        - name: table_name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pk
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sk
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Знайдений запис або відсортовані записи партиції
+        '404':
+          description: Ключ не знайдено
+    delete:
+      summary: DELETE — Видалення запису за ключем
+      parameters:
+        - name: table_name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pk
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sk
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Запис успішно видалено
+        '404':
+          description: Ключ не знайдено
+
+  /tables/{table_name}/items/{pk}/exists:
+    get:
+      summary: EXISTS — Перевірка наявності значення за ключем
+      parameters:
+        - name: table_name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pk
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sk
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Статус існування ключа (exists true/false)
