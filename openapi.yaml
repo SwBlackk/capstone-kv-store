@@ -1,15 +1,13 @@
 openapi: 3.0.3
 info:
-  title: Distributed Key-Value Store API
+  title: Streaming Service KV-Store API
   description: >-
-    Специфікація REST API для розподіленого key-value сховища з підтримкою
-    реєстрації таблиць, складеного первинного ключа (Partition Key + Sort Key)
-    та шардингу на основі Consistent Hashing.
+    Специфікація REST API для розподіленого key-value сховища стрімінгової платформи
+    (підтримка профілів, історії переглядів, складених ключів та Consistent Hashing).
   version: 1.0.0
 servers:
   - url: http://localhost:8000
     description: Вузол-координатор (Coordinator Node)
-
 paths:
   /health:
     get:
@@ -17,7 +15,6 @@ paths:
       responses:
         '200':
           description: Поточний статус вузла (single-node або sharded)
-
   /tables:
     post:
       summary: Реєстрація визначення нової таблиці
@@ -33,14 +30,14 @@ paths:
               properties:
                 table_name:
                   type: string
-                  example: orders
+                  example: watch_history
                 partition_key:
                   type: string
-                  example: customer_id
+                  example: user_id
                 sort_key:
                   type: string
                   nullable: true
-                  example: order_id
+                  example: timestamp
       responses:
         '201':
           description: Таблицю успішно зареєстровано
@@ -49,7 +46,6 @@ paths:
       responses:
         '200':
           description: Перелік таблиць
-
   /shards/register:
     post:
       summary: Автоматична реєстрація вузла-шарда у координаторі при старті
@@ -71,15 +67,13 @@ paths:
                   example: http://10.0.11.15:8001
       responses:
         '200':
-          description: Шард успішно додано до кільця Consistent Hashing
-
+          description: Шард успішно додано до кільця
   /shards:
     get:
       summary: Стан зареєстрованих шардів та кільця Consistent Hashing
       responses:
         '200':
           description: Список активних шардів і кількість віртуальних вузлів
-
   /tables/{table_name}/items:
     post:
       summary: CREATE — Збереження пари ключ-значення
@@ -102,24 +96,23 @@ paths:
                 pk:
                   type: string
                   description: Partition Key
-                  example: client_alpha
+                  example: user_alpha
                 sk:
                   type: string
                   nullable: true
-                  description: Sort Key (опціонально, якщо визначено у схемі таблиці)
-                  example: 2026-11-01#001
+                  description: Sort Key (опціонально)
+                  example: 2026-11-06T20:15:00
                 value:
                   type: object
                   example:
-                    item: Monitor
-                    amount: 350
+                    show: Stranger Things
+                    duration_min: 45
       responses:
         '200':
-          description: Запис успішно збережено на відповідному шарді
-
+          description: Запис успішно збережено
   /tables/{table_name}/items/{pk}:
     get:
-      summary: READ — Читання значення за ключем або вибірка відсортованої партиції
+      summary: READ — Читання значення за ключем або вибірка партиції
       parameters:
         - name: table_name
           in: path
@@ -164,7 +157,6 @@ paths:
           description: Запис успішно видалено
         '404':
           description: Ключ не знайдено
-
   /tables/{table_name}/items/{pk}/exists:
     get:
       summary: EXISTS — Перевірка наявності значення за ключем
